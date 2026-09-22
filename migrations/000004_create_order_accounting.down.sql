@@ -1,0 +1,14 @@
+DROP TRIGGER IF EXISTS financial_transactions_immutable ON financial_transactions;
+DROP TRIGGER IF EXISTS prepaid_transactions_immutable ON prepaid_transactions;
+DROP TRIGGER IF EXISTS ledger_entries_immutable ON ledger_entries;
+DROP FUNCTION IF EXISTS reject_financial_mutation();
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS financial_transactions;
+DROP TABLE IF EXISTS prepaid_transactions;
+DROP TABLE IF EXISTS ledger_entries;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS prepaid_accounts;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS idempotency_records;
+DROP TABLE IF EXISTS business_sequences;

@@ -1,0 +1,172 @@
+openapi: 3.1.0
+info:
+  title: 云记账 API
+  version: 0.4.0
+  description: 独立 Go 后端合同；成功响应为裸业务 JSON，错误响应为稳定机器码。
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /health:
+    get:
+      servers: [{url: 'http://localhost:8080'}]
+      summary: 应用和数据库健康检查
+      responses:
+        '200': {description: 应用与数据库可用}
+        '503': {description: 数据库不可用}
+  /auth/login:
+    post:
+      summary: 登录并设置 HttpOnly refresh cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account, password]
+              properties:
+                account: {type: string, minLength: 1, maxLength: 80}
+                password: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        '200': {$ref: '#/components/responses/Session'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /auth/refresh:
+    post:
+      summary: 轮换 refresh token 并恢复会话
+      responses:
+        '200': {$ref: '#/components/responses/Session'}
+        '401': {$ref: '#/components/responses/Error'}
+  /auth/logout:
+    post:
+      summary: 撤销 refresh session
+      responses:
+        '204': {description: 已退出；重复调用也成功}
+  /auth/me:
+    get:
+      summary: 当前用户和实时权限
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 当前用户
+          content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}
+        '401': {$ref: '#/components/responses/Error'}
+  /workers:
+    get:
+      summary: 油漆工分页列表
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {name: teamId, in: query, schema: {type: string, format: uuid}}
+        - {name: debt, in: query, schema: {type: string, enum: [owing, clear]}}
+        - {name: status, in: query, schema: {type: string, enum: [ACTIVE, DISABLED]}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses: {'200': {description: WorkerPage}, '401': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}}
+    post:
+      summary: 新增油漆工
+      security: [{bearerAuth: []}]
+      responses: {'201': {description: Worker}, '422': {$ref: '#/components/responses/Error'}}
+  /workers/{id}:
+    get:
+      summary: 油漆工详情
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: Worker}, '404': {$ref: '#/components/responses/Error'}}
+    patch:
+      summary: 乐观锁更新油漆工
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: Worker}, '409': {$ref: '#/components/responses/Error'}}
+  /teams:
+    get: {summary: 施工队分页列表, security: [{bearerAuth: []}], responses: {'200': {description: TeamPage}}}
+    post: {summary: 新增施工队, security: [{bearerAuth: []}], responses: {'201': {description: Team}}}
+  /teams/{id}:
+    get: {summary: 施工队详情, security: [{bearerAuth: []}], parameters: [{$ref: '#/components/parameters/ID'}], responses: {'200': {description: Team}}}
+    patch: {summary: 乐观锁更新施工队, security: [{bearerAuth: []}], parameters: [{$ref: '#/components/parameters/ID'}], responses: {'200': {description: Team}, '409': {$ref: '#/components/responses/Error'}}}
+  /projects:
+    get: {summary: 工地分页列表，支持 search/status/teamId/workerId, security: [{bearerAuth: []}], responses: {'200': {description: ProjectPage}}}
+    post: {summary: 新增工地及关联油漆工, security: [{bearerAuth: []}], responses: {'201': {description: Project}}}
+  /projects/{id}:
+    get: {summary: 工地详情, security: [{bearerAuth: []}], parameters: [{$ref: '#/components/parameters/ID'}], responses: {'200': {description: Project}}}
+    patch: {summary: 原子更新工地及成员关系, security: [{bearerAuth: []}], parameters: [{$ref: '#/components/parameters/ID'}], responses: {'200': {description: Project}, '409': {$ref: '#/components/responses/Error'}}}
+  /materials:
+    get: {summary: 材料分页列表，支持 search/brand/category/status, security: [{bearerAuth: []}], responses: {'200': {description: MaterialPage}}}
+    post: {summary: 新增材料, security: [{bearerAuth: []}], responses: {'201': {description: Material}}}
+  /materials/{id}:
+    patch: {summary: 乐观锁更新材料, security: [{bearerAuth: []}], parameters: [{$ref: '#/components/parameters/ID'}], responses: {'200': {description: Material}, '409': {$ref: '#/components/responses/Error'}}}
+  /pricing:
+    get: {summary: 查询客户对全部有效材料的生效价格, security: [{bearerAuth: []}], parameters: [{name: workerId, in: query, required: true, schema: {type: string, format: uuid}}], responses: {'200': {description: PricingItem 数组}}}
+    patch: {summary: 在同一事务批量结束旧价格并创建新价格, security: [{bearerAuth: []}], responses: {'200': {description: PricingItem 数组}}}
+  /orders:
+    get:
+      summary: 用料单分页列表
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {name: workerId, in: query, schema: {type: string, format: uuid}}
+        - {name: status, in: query, schema: {type: string, enum: [DRAFT, CONFIRMED, PARTIALLY_PAID, PAID, REVERSED]}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses: {'200': {description: OrderPage}}
+    post:
+      summary: 原子创建用料单及全部账务流水
+      description: 强制 Idempotency-Key；后端重算金额。相同 key 和请求返回首次结果，不同请求返回 IDEMPOTENCY_CONFLICT。
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, maxLength: 255}}
+      responses:
+        '201': {description: Order；幂等重放带 Idempotent-Replayed=true}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /orders/{id}:
+    get:
+      summary: 用料单详情和历史行快照
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: Order}, '404': {$ref: '#/components/responses/Error'}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    Page: {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+    PageSize: {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
+  responses:
+    Session:
+      description: 会话
+      content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}
+    Error:
+      description: 稳定错误结构
+      content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}
+  schemas:
+    Session:
+      type: object
+      required: [accessToken, expiresIn, user]
+      properties:
+        accessToken: {type: string}
+        expiresIn: {type: integer, minimum: 1}
+        user: {$ref: '#/components/schemas/User'}
+    User:
+      type: object
+      required: [id, name, account, role, permissions, status]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        account: {type: string}
+        role: {type: string, enum: [OWNER, FINANCE, CLERK]}
+        permissions: {type: array, items: {type: string}}
+        status: {type: string, enum: [ACTIVE, DISABLED]}
+    ApiError:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        requestId: {type: string}
+        fieldErrors:
+          type: object
+          additionalProperties: {type: array, items: {type: string}}

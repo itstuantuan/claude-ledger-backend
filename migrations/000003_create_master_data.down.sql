@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS customer_prices;
+DROP TABLE IF EXISTS materials;
+DROP TABLE IF EXISTS project_workers;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS workers;
+DROP TABLE IF EXISTS teams;
