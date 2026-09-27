@@ -102,9 +102,65 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, item)
 }
+func (h *Handler) ListAdjustments(c *gin.Context) {
+	store, e := platformrequest.UUID(c, auth.ContextStoreID)
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	orderID, e := platformrequest.ParamUUID(c, "id")
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	items, e := h.service.ListAdjustments(c.Request.Context(), store, orderID)
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	c.JSON(http.StatusOK, items)
+}
+func (h *Handler) Adjust(c *gin.Context) {
+	key := c.GetHeader("Idempotency-Key")
+	if key == "" || len(key) > 255 {
+		response.WriteError(c, apperror.New(422, "IDEMPOTENCY_REQUIRED", "缺少防重复提交标识。"))
+		return
+	}
+	store, e := platformrequest.UUID(c, auth.ContextStoreID)
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	user, e := platformrequest.UUID(c, auth.ContextUserID)
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	orderID, e := platformrequest.ParamUUID(c, "id")
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	var input AdjustmentInput
+	if c.ShouldBindJSON(&input) != nil {
+		response.WriteError(c, apperror.Validation(map[string][]string{"body": {"请求格式不正确"}}))
+		return
+	}
+	item, replayed, e := h.service.Adjust(c.Request.Context(), createMeta{StoreID: store, UserID: user, Key: key, RequestID: response.RequestID(c), IP: c.ClientIP(), UserAgent: c.Request.UserAgent()}, orderID, input)
+	if e != nil {
+		response.WriteError(c, e)
+		return
+	}
+	if replayed {
+		c.Header("Idempotent-Replayed", "true")
+	}
+	c.JSON(http.StatusCreated, item)
+}
 func RegisterRoutes(api *gin.RouterGroup, h *Handler, m auth.Middleware) {
 	g := api.Group("/orders", m.Authenticate())
 	g.GET("", auth.Require("workers:read"), h.List)
 	g.GET("/:id", auth.Require("workers:read"), h.Get)
 	g.POST("", auth.Require("orders:create"), h.Create)
+	g.GET("/:id/adjustments", auth.Require("workers:read"), h.ListAdjustments)
+	g.POST("/:id/adjustments", auth.Require("orders:create"), h.Adjust)
 }

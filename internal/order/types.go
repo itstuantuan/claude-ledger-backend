@@ -57,6 +57,7 @@ type Response struct {
 	OccurredAt        string         `json:"occurredAt"`
 	CreatedAt         string         `json:"createdAt"`
 	OperatorName      string         `json:"operatorName"`
+	Version           int64          `json:"version"`
 }
 
 type Model struct {
@@ -73,6 +74,7 @@ type Model struct {
 	OccurredAt, ConfirmedAt                                                                                                                            time.Time
 	CreatedBy                                                                                                                                          uuid.UUID
 	CreatedAt, UpdatedAt                                                                                                                               time.Time
+	Version                                                                                                                                            int64
 }
 
 func (Model) TableName() string { return "orders" }
@@ -86,6 +88,56 @@ type ItemModel struct {
 }
 
 func (ItemModel) TableName() string { return "order_items" }
+
+type AdjustmentInput struct {
+	Type            string                `json:"type"`
+	OccurredAt      string                `json:"occurredAt"`
+	Items           []AdjustmentItemInput `json:"items"`
+	Note            string                `json:"note"`
+	ExpectedVersion int64                 `json:"expectedVersion"`
+}
+
+type AdjustmentItemInput struct {
+	MaterialID string `json:"materialId"`
+	Quantity   string `json:"quantity"`
+	UnitPrice  string `json:"unitPrice"`
+	Discount   string `json:"discount"`
+}
+
+type AdjustmentResponse struct {
+	ID           string         `json:"id"`
+	AdjustmentNo string         `json:"adjustmentNo"`
+	Type         string         `json:"type"`
+	Items        []ItemResponse `json:"items"`
+	GoodsAmount  string         `json:"goodsAmount"`
+	Discount     string         `json:"discountAmount"`
+	FinalAmount  string         `json:"finalAmount"`
+	Note         string         `json:"note"`
+	OccurredAt   string         `json:"occurredAt"`
+	CreatedAt    string         `json:"createdAt"`
+	OperatorName string         `json:"operatorName"`
+}
+
+type AdjustmentModel struct {
+	ID, StoreID, OrderID                     uuid.UUID
+	AdjustmentNo, Type                       string
+	GoodsAmount, DiscountAmount, FinalAmount decimal.Decimal
+	Remark                                   string
+	OccurredAt                               time.Time
+	CreatedBy                                uuid.UUID
+	CreatedAt                                time.Time
+}
+
+func (AdjustmentModel) TableName() string { return "order_adjustments" }
+
+type AdjustmentItemModel struct {
+	ID, StoreID, AdjustmentID, OrderID, MaterialID                           uuid.UUID
+	MaterialNameSnapshot, BrandSnapshot, SpecificationSnapshot, UnitSnapshot string
+	UnitPrice, Quantity, GrossAmount, DiscountAmount, Subtotal               decimal.Decimal
+	CreatedAt                                                                time.Time
+}
+
+func (AdjustmentItemModel) TableName() string { return "order_adjustment_items" }
 
 type WorkerAccount struct {
 	ID, StoreID                                                    uuid.UUID

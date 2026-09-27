@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 云记账 API
-  version: 0.4.0
+  version: 0.5.0
   description: 独立 Go 后端合同；成功响应为裸业务 JSON，错误响应为稳定机器码。
 servers:
   - url: http://localhost:8080/api/v1
@@ -128,6 +128,23 @@ paths:
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/ID'}]
       responses: {'200': {description: Order}, '404': {$ref: '#/components/responses/Error'}}
+  /orders/{id}/adjustments:
+    get:
+      summary: 查询用料单的补料和退料流水
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/ID'}]
+      responses: {'200': {description: OrderAdjustment 数组}, '404': {$ref: '#/components/responses/Error'}}
+    post:
+      summary: 向原用料单追加补料或退料流水
+      description: 原始流水保持不变；后端原子更新订单汇总、客户应收、项目金额和 Ledger。退料不能超过当前材料数量或未结金额。
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/ID'}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, maxLength: 255}}
+      responses:
+        '201': {description: OrderAdjustment；幂等重放带 Idempotent-Replayed=true}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}

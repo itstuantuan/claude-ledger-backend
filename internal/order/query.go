@@ -5,6 +5,7 @@ import (
 	"cloud-ledger-backend/internal/platform/pagination"
 	"context"
 	"github.com/google/uuid"
+	"sort"
 )
 
 type queryRow struct {
@@ -60,15 +61,19 @@ func (s *Service) responses(ctx context.Context, store uuid.UUID, rows []queryRo
 	for i, r := range rows {
 		ids[i] = r.ID
 	}
-	var all []ItemModel
-	if len(ids) > 0 {
-		if e := s.db.WithContext(ctx).Where("store_id=? AND order_id IN ?", store, ids).Order("created_at,id").Find(&all).Error; e != nil {
-			return nil, e
-		}
+	balances, e := currentBalancesForOrders(s.db.WithContext(ctx), store, ids)
+	if e != nil {
+		return nil, e
 	}
 	by := map[uuid.UUID][]ItemResponse{}
-	for _, i := range all {
-		by[i.OrderID] = append(by[i.OrderID], ItemResponse{MaterialID: i.MaterialID.String(), MaterialName: i.MaterialNameSnapshot, Specification: i.SpecificationSnapshot, Unit: i.UnitSnapshot, Quantity: i.Quantity.String(), UnitPrice: i.UnitPrice.StringFixed(2), Discount: i.DiscountAmount.StringFixed(2), Subtotal: i.Subtotal.StringFixed(2)})
+	for orderID, materials := range balances {
+		for _, item := range materials {
+			if !item.Quantity.IsPositive() {
+				continue
+			}
+			by[orderID] = append(by[orderID], ItemResponse{MaterialID: item.MaterialID.String(), MaterialName: item.Name, Specification: item.Specification, Unit: item.Unit, Quantity: item.Quantity.String(), UnitPrice: item.GrossAmount.Div(item.Quantity).StringFixed(2), Discount: item.DiscountAmount.StringFixed(2), Subtotal: item.Subtotal.StringFixed(2)})
+		}
+		sort.Slice(by[orderID], func(i, j int) bool { return by[orderID][i].MaterialName < by[orderID][j].MaterialName })
 	}
 	out := make([]Response, len(rows))
 	for i, r := range rows {

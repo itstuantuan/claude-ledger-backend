@@ -207,7 +207,7 @@ func (s *Service) Create(ctx context.Context, meta createMeta, input Input) (Res
 		} else if settled.IsPositive() {
 			status = "PARTIALLY_PAID"
 		}
-		order := Model{ID: orderID, StoreID: meta.StoreID, OrderNo: orderNo, WorkerID: worker.ID, WorkerNameSnapshot: worker.Name, ProjectID: projectID, ProjectNameSnapshot: projectName, Status: status, GoodsAmount: calc.Goods, DiscountAmount: calc.Discount, FinalAmount: calc.Final, PaymentAmount: calc.Payment, PrepaidDeductionAmount: calc.Prepaid, AddedReceivable: calc.Receivable, ReturnedAmount: decimal.Zero, SettledAmount: settled, OutstandingAmount: calc.Receivable, PaymentMethod: input.PaymentMethod, Remark: strings.TrimSpace(input.Note), OccurredAt: occurred, ConfirmedAt: now, CreatedBy: meta.UserID, CreatedAt: now, UpdatedAt: now}
+		order := Model{ID: orderID, StoreID: meta.StoreID, OrderNo: orderNo, WorkerID: worker.ID, WorkerNameSnapshot: worker.Name, ProjectID: projectID, ProjectNameSnapshot: projectName, Status: status, GoodsAmount: calc.Goods, DiscountAmount: calc.Discount, FinalAmount: calc.Final, PaymentAmount: calc.Payment, PrepaidDeductionAmount: calc.Prepaid, AddedReceivable: calc.Receivable, ReturnedAmount: decimal.Zero, SettledAmount: settled, OutstandingAmount: calc.Receivable, PaymentMethod: input.PaymentMethod, Remark: strings.TrimSpace(input.Note), OccurredAt: occurred, ConfirmedAt: now, CreatedBy: meta.UserID, CreatedAt: now, UpdatedAt: now, Version: 1}
 		if e = tx.Create(&order).Error; e != nil {
 			return e
 		}
@@ -265,6 +265,11 @@ func (s *Service) Create(ctx context.Context, meta createMeta, input Input) (Res
 		if e = tx.Model(&WorkerAccount{}).Where("store_id=? AND id=?", meta.StoreID, worker.ID).Updates(map[string]any{"material_total": gorm.Expr("material_total + ?", calc.Final), "payment_total": gorm.Expr("payment_total + ?", calc.Payment), "prepaid_balance": gorm.Expr("prepaid_balance - ?", calc.Prepaid), "current_receivable": balance, "last_transaction_at": occurred, "version": gorm.Expr("version+1"), "updated_at": now}).Error; e != nil {
 			return e
 		}
+		if projectID != nil {
+			if e = tx.Table("projects").Where("store_id=? AND id=?", meta.StoreID, *projectID).Updates(map[string]any{"material_total": gorm.Expr("material_total + ?", calc.Final), "version": gorm.Expr("version+1"), "updated_at": now}).Error; e != nil {
+				return e
+			}
+		}
 		if e = tx.Model(&struct{ ID uuid.UUID }{}).Table("materials").Where("store_id=? AND id IN ?", meta.StoreID, ids).UpdateColumn("sales_count", gorm.Expr("sales_count+1")).Error; e != nil {
 			return e
 		}
@@ -317,5 +322,5 @@ func responseFrom(o Model, items []ItemResponse, operator string) Response {
 		v := o.ProjectID.String()
 		projectID = &v
 	}
-	return Response{ID: o.ID.String(), OrderNo: o.OrderNo, WorkerID: o.WorkerID.String(), WorkerName: o.WorkerNameSnapshot, ProjectID: projectID, ProjectName: o.ProjectNameSnapshot, Items: items, GoodsAmount: o.GoodsAmount.StringFixed(2), DiscountAmount: o.DiscountAmount.StringFixed(2), FinalAmount: o.FinalAmount.StringFixed(2), PaymentAmount: o.PaymentAmount.StringFixed(2), PrepaidDeduction: o.PrepaidDeductionAmount.StringFixed(2), AddedReceivable: o.AddedReceivable.StringFixed(2), ReturnedAmount: o.ReturnedAmount.StringFixed(2), SettledAmount: o.SettledAmount.StringFixed(2), OutstandingAmount: o.OutstandingAmount.StringFixed(2), PaymentMethod: o.PaymentMethod, Status: o.Status, Note: o.Remark, OccurredAt: o.OccurredAt.Format(time.RFC3339), CreatedAt: o.CreatedAt.Format(time.RFC3339), OperatorName: operator}
+	return Response{ID: o.ID.String(), OrderNo: o.OrderNo, WorkerID: o.WorkerID.String(), WorkerName: o.WorkerNameSnapshot, ProjectID: projectID, ProjectName: o.ProjectNameSnapshot, Items: items, GoodsAmount: o.GoodsAmount.StringFixed(2), DiscountAmount: o.DiscountAmount.StringFixed(2), FinalAmount: o.FinalAmount.StringFixed(2), PaymentAmount: o.PaymentAmount.StringFixed(2), PrepaidDeduction: o.PrepaidDeductionAmount.StringFixed(2), AddedReceivable: o.AddedReceivable.StringFixed(2), ReturnedAmount: o.ReturnedAmount.StringFixed(2), SettledAmount: o.SettledAmount.StringFixed(2), OutstandingAmount: o.OutstandingAmount.StringFixed(2), PaymentMethod: o.PaymentMethod, Status: o.Status, Note: o.Remark, OccurredAt: o.OccurredAt.Format(time.RFC3339), CreatedAt: o.CreatedAt.Format(time.RFC3339), OperatorName: operator, Version: o.Version}
 }
