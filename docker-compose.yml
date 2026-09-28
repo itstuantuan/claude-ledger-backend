@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: crpi-qs80efbyksjfaftp.cn-beijing.personal.cr.aliyuncs.com/cloud-ledger/postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-cloud_ledger}
@@ -27,7 +27,7 @@ services:
         condition: service_healthy
 
   api:
-    build: .
+    image: crpi-qs80efbyksjfaftp.cn-beijing.personal.cr.aliyuncs.com/cloud-ledger/claude-ledger-backend:latest
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:-development}
