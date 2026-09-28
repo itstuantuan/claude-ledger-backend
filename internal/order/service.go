@@ -3,6 +3,7 @@ package order
 import (
 	"bytes"
 	"cloud-ledger-backend/internal/platform/apperror"
+	platformvalue "cloud-ledger-backend/internal/platform/value"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -301,20 +302,7 @@ func nextNumber(tx *gorm.DB, store uuid.UUID, date time.Time, prefix string) (st
 	return fmt.Sprintf("%s%s%04d", prefix, date.Format("20060102"), value), nil
 }
 func parseOccurred(raw, zone string) (time.Time, time.Time, error) {
-	location, err := time.LoadLocation(zone)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	if day, err := time.ParseInLocation("2006-01-02", raw, location); err == nil {
-		return day.UTC(), day, nil
-	}
-	value, err := time.Parse(time.RFC3339, raw)
-	if err != nil {
-		return time.Time{}, time.Time{}, err
-	}
-	local := value.In(location)
-	day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location)
-	return value.UTC(), day, nil
+	return platformvalue.ParseBusinessTime(raw, zone)
 }
 func responseFrom(o Model, items []ItemResponse, operator string) Response {
 	var projectID *string

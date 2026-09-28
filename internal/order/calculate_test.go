@@ -37,6 +37,14 @@ func TestParseOccurredUsesStoreTimezoneForBusinessDate(t *testing.T) {
 		t.Fatalf("unexpected business day: %s", got)
 	}
 
+	occurred, businessDay, err = parseOccurred("2026-09-22T12:30", "Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := occurred.Format(time.RFC3339); got != "2026-09-22T04:30:00Z" {
+		t.Fatalf("unexpected datetime-local occurrence: %s", got)
+	}
+
 	occurred, businessDay, err = parseOccurred("2026-09-21T17:30:00Z", "Asia/Shanghai")
 	if err != nil {
 		t.Fatal(err)

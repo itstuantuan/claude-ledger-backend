@@ -2,10 +2,24 @@ package payment
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
+func TestParseOccurredAcceptsDatetimeLocal(t *testing.T) {
+	occurred, businessDay, err := parseOccurred("2026-09-28T12:30", "Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := occurred.Format(time.RFC3339); got != "2026-09-28T04:30:00Z" {
+		t.Fatalf("unexpected occurrence: %s", got)
+	}
+	if got := businessDay.Format(time.DateOnly); got != "2026-09-28" {
+		t.Fatalf("unexpected business day: %s", got)
+	}
+}
 
 func TestPlanAllocationsFIFO(t *testing.T) {
 	first, second := uuid.New(), uuid.New()
