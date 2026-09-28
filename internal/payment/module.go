@@ -417,8 +417,15 @@ func (s *Service) Create(ctx context.Context, meta createMeta, input Input) (Res
 	return output, replayed, err
 }
 
+// Query fields must be exported directly: GORM ignores an unexported
+// anonymous paymentModel field when scanning the joined result.
 type queryRow struct {
-	paymentModel
+	ID, WorkerID             uuid.UUID
+	PaymentNo                string
+	Amount                   decimal.Decimal
+	PaymentMethod            string
+	OccurredAt, CreatedAt    time.Time
+	Remark                   string
 	WorkerName, OperatorName string
 	ReceivableAfter          decimal.Decimal
 }
