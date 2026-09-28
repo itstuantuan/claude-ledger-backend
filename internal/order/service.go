@@ -156,7 +156,7 @@ func (s *Service) Create(ctx context.Context, meta createMeta, input Input) (Res
 				return apperror.New(422, "MATERIAL_UNAVAILABLE", "所选材料不存在或已停用。")
 			}
 			var customer struct{ Price decimal.Decimal }
-			priceQuery := tx.Table("customer_prices").Select("price").Where("store_id=? AND worker_id=? AND material_id=? AND status='ACTIVE' AND effective_from<=? AND (effective_to IS NULL OR effective_to>?)", meta.StoreID, worker.ID, m.ID, occurred, occurred).Order("effective_from DESC").Limit(1).Scan(&customer)
+			priceQuery := tx.Table("customer_prices").Select("price").Where("store_id=? AND worker_id=? AND material_id=? AND effective_from<=? AND (effective_to IS NULL OR effective_to>?)", meta.StoreID, worker.ID, m.ID, occurred, occurred).Order("effective_from DESC").Limit(1).Scan(&customer)
 			if e = priceQuery.Error; e != nil {
 				return e
 			}

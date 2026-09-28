@@ -97,8 +97,24 @@ paths:
   /materials/{id}:
     patch: {summary: 乐观锁更新材料, security: [{bearerAuth: []}], parameters: [{$ref: '#/components/parameters/ID'}], responses: {'200': {description: Material}, '409': {$ref: '#/components/responses/Error'}}}
   /pricing:
-    get: {summary: 查询客户对全部有效材料的生效价格, security: [{bearerAuth: []}], parameters: [{name: workerId, in: query, required: true, schema: {type: string, format: uuid}}], responses: {'200': {description: PricingItem 数组}}}
-    patch: {summary: 在同一事务批量结束旧价格并创建新价格, security: [{bearerAuth: []}], responses: {'200': {description: PricingItem 数组}}}
+    get:
+      summary: 按业务时间查询客户对有效材料的生效价格
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: workerId, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: at, in: query, description: RFC3339；不传时为当前时间, schema: {type: string, format: date-time}}
+        - {name: search, in: query, schema: {type: string}}
+      responses: {'200': {description: PricingItem 数组，含 priceVersion 和 effectiveFrom}}
+    patch:
+      summary: 乐观锁批量更新客户价格并保留价格历史
+      description: 仅提交变化项；强制 Idempotency-Key，每项 expectedVersion 用于避免并发覆盖，留空 price 恢复默认售价。
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, maxLength: 255}}
+      responses:
+        '200': {description: 最新 PricingItem 数组；幂等重放带 Idempotent-Replayed=true}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
   /orders:
     get:
       summary: 用料单分页列表
