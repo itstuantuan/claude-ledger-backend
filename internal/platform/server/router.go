@@ -5,6 +5,7 @@ import (
 	"cloud-ledger-backend/internal/health"
 	"cloud-ledger-backend/internal/material"
 	"cloud-ledger-backend/internal/order"
+	"cloud-ledger-backend/internal/payment"
 	"cloud-ledger-backend/internal/platform/config"
 	platformlog "cloud-ledger-backend/internal/platform/logger"
 	platformmw "cloud-ledger-backend/internal/platform/middleware"
@@ -45,5 +46,6 @@ func NewRouter(cfg config.Config, log *platformlog.Logger, db *gorm.DB) *gin.Eng
 	material.RegisterRoutes(api, material.NewHandler(material.NewService(db)), authMiddleware)
 	pricing.RegisterRoutes(api, pricing.NewHandler(pricing.NewService(db)), authMiddleware)
 	order.RegisterRoutes(api, order.NewHandler(order.NewService(db)), authMiddleware)
+	payment.RegisterRoutes(api, payment.NewHandler(payment.NewService(db)), authMiddleware)
 	return router
 }

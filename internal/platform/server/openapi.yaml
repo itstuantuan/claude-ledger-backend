@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 云记账 API
-  version: 0.5.0
+  version: 0.6.0
   description: 独立 Go 后端合同；成功响应为裸业务 JSON，错误响应为稳定机器码。
 servers:
   - url: http://localhost:8080/api/v1
@@ -143,6 +143,28 @@ paths:
         - {name: Idempotency-Key, in: header, required: true, schema: {type: string, maxLength: 255}}
       responses:
         '201': {description: OrderAdjustment；幂等重放带 Idempotent-Replayed=true}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /payments:
+    get:
+      summary: 查询收款记录及订单核销明细
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {name: workerId, in: query, schema: {type: string, format: uuid}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses: {'200': {description: PaymentPage}, '401': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}}
+    post:
+      summary: 登记独立收款并核销未结订单
+      description: allocations 为空时按最早未结订单自动核销；传入时按指定订单核销，核销合计必须等于收款金额。
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, maxLength: 255}}
+      responses:
+        '201': {description: Payment；包含订单核销明细，幂等重放带 Idempotent-Replayed=true}
         '409': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
 components:
